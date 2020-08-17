@@ -99,7 +99,7 @@ var controller = (function (budgetCtrl, UICtrl) {
     var ctrlAddItem = function () {
         var input, newItem;
 
-        // 1. 입력된 데이터 가져오기
+        // 1. 입력된 데이터 가져오기.
         input = UICtrl.getInput();
 
         // 2. 예산 관리자에 항목 추가
