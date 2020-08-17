@@ -102,6 +102,24 @@ var UIController = (function () {
                 .insertAdjacentHTML('beforeend', newHtml);
         },
 
+        clearFields: function () {
+            var fields, fieldsArr;
+
+            fields = document.querySelectorAll(
+                DOMstrings.inputDescription + ', ' + DOMstrings.inputValue
+            );
+
+            // fields.slice() 지금은 이케가 안되는게 fields가 배열이 아니라 안 됨
+            fieldsArr = Array.prototype.slice.call(fields);
+            // 그래서 이케 배열생성자함수 써서 배멸로 만들면서 이케 해야 함
+
+            fieldsArr.forEach(function (current, index, array) {
+                current.value = '';
+            });
+            // Add description으로 초점 이동(DOMstrings.inputDescription칸);
+            fieldsArr[0].focus();
+        },
+
         getDomstrings: function () {
             return DOMstrings;
         },
@@ -138,6 +156,10 @@ var controller = (function (budgetCtrl, UICtrl) {
         );
         // 3. UI에 항목 추가
         UICtrl.addListItem(newItem, input.type);
+
+        // 4. Clear the fields
+        UICtrl.clearFields();
+
         // 4. 예산 계산
         // 5. UI에 예산 표시
     };
