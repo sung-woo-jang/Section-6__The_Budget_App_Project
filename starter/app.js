@@ -49,6 +49,7 @@ var budgetController = (function () {
             // Create new ID
             if (data.allItems[type].length > 0) {
                 ID = data.allItems[type][data.allItems[type].length - 1].id + 1;
+                console.log(ID);
             } else {
                 ID = 0;
             }
@@ -224,6 +225,7 @@ var controller = (function (budgetCtrl, UICtrl) {
         UICtrl.displayBudget(budget);
     };
 
+    // cilck keypress
     var ctrlAddItem = function () {
         var input, newItem;
 
