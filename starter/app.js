@@ -1,17 +1,33 @@
+// 눈에 안 보이는 부분 계산 하는 곳
 // BUDGET CONTROLLER
 var budgetController = (function () {
+    // 지출
     var Expense = function (id, description, value) {
         this.id = id;
         this.description = description;
         this.value = value;
     };
 
+    // 수입
     var Income = function (id, description, value) {
         this.id = id;
         this.description = description;
         this.value = value;
     };
 
+    var calculateTotal = function (type) {
+        var sum = 0;
+        data.allItems[type].forEach(function (cur) {
+            // console.log(cur) == Income {id: 0, description: "test", value: 3000}
+            /*    description: "test"
+                  id: 0
+                  value: 3000 */
+            sum += cur.value;
+        });
+        data.totals[type] = sum;
+    };
+
+    // 지출 || 수입 저장 후 총 예산
     var data = {
         allItems: {
             exp: [],
@@ -21,9 +37,12 @@ var budgetController = (function () {
             exp: 0,
             inc: 0,
         },
+        budget: 0,
+        percentage: -1,
     };
 
     return {
+        // 손익 구분 후 입력값 별로 return
         addItem: function (type, des, val) {
             var newItem, ID;
 
@@ -48,14 +67,45 @@ var budgetController = (function () {
             return newItem;
         },
 
+        // 예산 총 합과 수익율 계산
+        calculateBudget: function () {
+            // calculate total income and expenses
+            calculateTotal('exp');
+            calculateTotal('inc');
+
+            // calculate the budget: income - expenses
+            data.budget = data.totals.inc - data.totals.exp;
+
+            // calculate the percentage of income that we spent
+            if (data.totals.inc > 0) {
+                data.percentage = Math.round(
+                    (data.totals.exp / data.totals.inc) * 100
+                );
+            } else {
+                data.percentage = -1;
+            }
+
+            // Expense = 100, income = 200, spent = 50% = 100/200
+        },
+        getBudget: function () {
+            return {
+                budget: data.budget,
+                totalInc: data.totals.inc,
+                totalExp: data.totals.exp,
+                percentage: data.percentage,
+            };
+        },
+
         testing: function () {
             console.log(data);
         },
     };
 })();
 
+// 계산 한 값들 받아서 웹에 표시하기
 // UI CONTOLLER
 var UIController = (function () {
+    // 손익 입력부분 && 지출과 수입 열
     var DOMstrings = {
         inputType: '.add__type',
         inputDescription: '.add__description',
@@ -63,6 +113,10 @@ var UIController = (function () {
         inputBtn: '.add__btn',
         incomeContainer: '.income__list',
         expensesContainer: '.expenses__list',
+        budgetLabel: '.budget__value',
+        incomeLabel: '.budget__income--value',
+        expensesLabel: '.budget__expenses--value',
+        percentageLabel: '.budget__expenses--percentage',
     };
 
     return {
@@ -73,13 +127,15 @@ var UIController = (function () {
                 type: document.querySelector(DOMstrings.inputType).value, //  Will be either inc or exp
                 description: document.querySelector(DOMstrings.inputDescription)
                     .value,
-                value: document.querySelector(DOMstrings.inputValue).value,
+                value: parseFloat(
+                    document.querySelector(DOMstrings.inputValue).value
+                ),
             };
         },
 
+        // HTML 문자열 생성 with placeholder text
         addListItem: function (obj, type) {
             var html, newHtml, element;
-            // HTML 문자열 생성 with placeholder text
 
             if (type === 'inc') {
                 element = DOMstrings.incomeContainer;
@@ -120,12 +176,29 @@ var UIController = (function () {
             fieldsArr[0].focus();
         },
 
+        displayBudget: function (obj) {
+            document.querySelector(DOMstrings.budgetLabel).textContent =
+                obj.budget;
+            document.querySelector(DOMstrings.incomeLabel).textContent =
+                obj.totalInc;
+            document.querySelector(DOMstrings.expensesLabel).textContent =
+                obj.totalExp;
+            if (obj.percentage > 0) {
+                document.querySelector(DOMstrings.percentageLabel).textContent =
+                    obj.percentage + '%';
+            } else {
+                document.querySelector(DOMstrings.percentageLabel).textContent =
+                    '---';
+            }
+        },
+
         getDomstrings: function () {
             return DOMstrings;
         },
     };
 })();
 
+// 사용자가 직접 사용하는 부분
 // GLOBAL APP CONTROLLER
 var controller = (function (budgetCtrl, UICtrl) {
     var setupEventListeners = function () {
@@ -141,6 +214,15 @@ var controller = (function (budgetCtrl, UICtrl) {
             }
         });
     };
+    var updateBudget = function () {
+        // 1. 예산 계산
+        budgetCtrl.calculateBudget();
+
+        // 2. return the budget
+        var budget = budgetCtrl.getBudget();
+        // 3. UI에 예산 표시
+        UICtrl.displayBudget(budget);
+    };
 
     var ctrlAddItem = function () {
         var input, newItem;
@@ -148,25 +230,37 @@ var controller = (function (budgetCtrl, UICtrl) {
         // 1. 입력된 데이터 가져오기.
         input = UICtrl.getInput();
 
-        // 2. 예산 관리자에 항목 추가
-        newItem = budgetCtrl.addItem(
-            input.type,
-            input.description,
-            input.value
-        );
-        // 3. UI에 항목 추가
-        UICtrl.addListItem(newItem, input.type);
+        if (
+            input.description !== '' &&
+            !isNaN(input.value) &&
+            input.value > 0
+        ) {
+            // 2. 예산 관리자에 항목 추가
+            newItem = budgetCtrl.addItem(
+                input.type,
+                input.description,
+                input.value
+            );
+            // 3. UI에 항목 추가
+            UICtrl.addListItem(newItem, input.type);
 
-        // 4. Clear the fields
-        UICtrl.clearFields();
+            // 4. Clear the fields
+            UICtrl.clearFields();
 
-        // 4. 예산 계산
-        // 5. UI에 예산 표시
+            // 5. Calculate and update budget
+            updateBudget();
+        }
     };
 
     return {
         init: function () {
             console.log('Application has started.');
+            UICtrl.displayBudget({
+                budget: data.budget,
+                totalInc: data.totals.inc,
+                totalExp: data.totals.exp,
+                percentage: data.percentage,
+            });
             setupEventListeners();
         },
     };
