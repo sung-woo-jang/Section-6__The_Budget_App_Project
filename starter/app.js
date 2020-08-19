@@ -162,18 +162,20 @@ var UIController = (function () {
         clearFields: function () {
             var fields, fieldsArr;
 
+            // querySelectorAll = 배열이 아닌 list를 반환(?)
             fields = document.querySelectorAll(
                 DOMstrings.inputDescription + ', ' + DOMstrings.inputValue
             );
 
-            // fields.slice() 지금은 이케가 안되는게 fields가 배열이 아니라 안 됨
+            // fields.slice() 지금은 이케가 안되는게 fields가 배열이 list라서 안 됨
+            // list를 배열로 만드는 트릭
             fieldsArr = Array.prototype.slice.call(fields);
-            // console.log(fieldsArr);  (2) [input.add__description, input.add__value]
             // 그래서 이케 배열생성자함수 써서 배멸로 만들면서 이케 해야 함
+            // console.log(fieldsArr);  (2) [input.add__description, input.add__value]
 
             fieldsArr.forEach(function (current, index, array) {
                 current.value = '';
-                // current=<input type="text" class="add__description" placeholder="Add description">, <input type="number" class="add__value" placeholder="Value">
+                // current = <input type="text" class="add__description" placeholder="Add description">, <input type="number" class="add__value" placeholder="Value">
                 //
             });
             // Add description으로 초점 이동(DOMstrings.inputDescription칸);
