@@ -168,10 +168,13 @@ var UIController = (function () {
 
             // fields.slice() 지금은 이케가 안되는게 fields가 배열이 아니라 안 됨
             fieldsArr = Array.prototype.slice.call(fields);
+            // console.log(fieldsArr);  (2) [input.add__description, input.add__value]
             // 그래서 이케 배열생성자함수 써서 배멸로 만들면서 이케 해야 함
 
             fieldsArr.forEach(function (current, index, array) {
                 current.value = '';
+                // current=<input type="text" class="add__description" placeholder="Add description">, <input type="number" class="add__value" placeholder="Value">
+                //
             });
             // Add description으로 초점 이동(DOMstrings.inputDescription칸);
             fieldsArr[0].focus();
