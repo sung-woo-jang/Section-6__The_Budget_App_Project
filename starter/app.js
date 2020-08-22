@@ -6,6 +6,19 @@ var budgetController = (function () {
         this.id = id;
         this.description = description;
         this.value = value;
+        this.percentage = -1;
+    };
+
+    Expense.prototype.calcPercentage = function (totalIncome) {
+        if (totalIncome > 0) {
+            this.percentage = Math.round((this.value / totalIncome) * 100);
+        } else {
+            this.percentage = -1;
+        }
+    };
+
+    Expense.prototype.getPercentage = function () {
+        return this.percentage;
     };
 
     // 수입
@@ -106,6 +119,30 @@ var budgetController = (function () {
 
             // Expense = 100, income = 200, spent = 50% = 100/200
         },
+
+        calculatePercentages: function () {
+            /* 
+            a=20
+            b=10
+            c=40
+            income = 100
+            a= 20/100 = 20%
+            b= 10/100 = 10%
+            c= 40/100 = 40%
+            */
+            data.allItems.exp.forEach(function (cur) {
+                cur.calcPercentage(data.totals.inc);
+            });
+        },
+
+        getPercentages: function () {
+            // map은 forEach와 다르게 무언가를 반환하기에 변수에 저장 가능
+            var allPerc = data.allItems.exp.map(function (cur) {
+                return cur.getPercentage();
+            });
+            return allPerc;
+        },
+
         getBudget: function () {
             return {
                 budget: data.budget,
@@ -137,6 +174,37 @@ var UIController = (function () {
         expensesLabel: '.budget__expenses--value',
         percentageLabel: '.budget__expenses--percentage',
         container: '.container',
+        expensesPercLabel: '.item__percentage',
+        dateLabel: '.budget__title--month',
+    };
+
+    var formatNumber = function (num, type) {
+        var numSplit, int, dec, type;
+        /* 
+        + 또는 - 숫자 이전
+        소수점 정확히 2개
+        천 단위로 컴마
+        2310.4567 -> + 2,310.46
+        2000 -> + 2,000.00
+         */
+
+        num = Math.abs(num);
+        num = num.toFixed(2);
+
+        numSplit = num.split('.');
+
+        int = numSplit[0];
+
+        if (int.length > 3) {
+            int =
+                int.substr(0, int.length - 3) +
+                ',' +
+                int.substr(int.length - 3, 3);
+        }
+
+        dec = numSplit[1];
+
+        return (type === 'exp' ? '-' : '+') + ' ' + int + '.' + dec;
     };
 
     return {
@@ -168,9 +236,9 @@ var UIController = (function () {
             }
             // Replace the placeholder text with some actual data
             newHtml = html.replace('%id%', obj.id);
-            // 변경값을 유지하면서 바꿯야 하기 때문에 newHtml.replace() 사용
+            // 변경값을 유지하면서 바꿔야 하기 때문에 newHtml.replace() 사용
             newHtml = newHtml.replace('%description%', obj.description);
-            newHtml = newHtml.replace('%value%', obj.value);
+            newHtml = newHtml.replace('%value%', formatNumber(obj.value, type));
 
             // Insert the HTML into the DOM
             document
@@ -180,6 +248,7 @@ var UIController = (function () {
 
         deleteListItem: function (selectorID) {
             var el = document.getElementById(selectorID);
+            // 단순히 그 항목을 삭제 할 순 없어서 부모로 가서 자식요소 제가하는 방식으로 해야 함
             el.parentNode.removeChild(el);
         },
 
@@ -207,12 +276,21 @@ var UIController = (function () {
         },
 
         displayBudget: function (obj) {
-            document.querySelector(DOMstrings.budgetLabel).textContent =
-                obj.budget;
-            document.querySelector(DOMstrings.incomeLabel).textContent =
-                obj.totalInc;
-            document.querySelector(DOMstrings.expensesLabel).textContent =
-                obj.totalExp;
+            var type;
+
+            obj.budget > 0 ? (type = 'inc') : (type = 'exp');
+
+            document.querySelector(
+                DOMstrings.budgetLabel
+            ).textContent = formatNumber(obj.budget, type);
+
+            document.querySelector(
+                DOMstrings.incomeLabel
+            ).textContent = formatNumber(obj.totalInc, 'inc');
+
+            document.querySelector(
+                DOMstrings.expensesLabel
+            ).textContent = formatNumber(obj.totalExp, 'exp');
             if (obj.percentage > 0) {
                 document.querySelector(DOMstrings.percentageLabel).textContent =
                     obj.percentage + '%';
@@ -220,6 +298,37 @@ var UIController = (function () {
                 document.querySelector(DOMstrings.percentageLabel).textContent =
                     '---';
             }
+        },
+
+        displayPercentages: function (percentages) {
+            var fields = document.querySelectorAll(
+                DOMstrings.expensesPercLabel
+            );
+
+            var nodeListForEach = function (list, callback) {
+                for (var i = 0; i < list.length; i++) {
+                    callback(list[i], i);
+                }
+            };
+
+            nodeListForEach(fields, function (current, index) {
+                if (percentages[index] > 0) {
+                    current.textContent = percentages[index] + '%';
+                } else {
+                    current.textContent = '---';
+                }
+            });
+        },
+
+        displayMonth: function () {
+            var now, year, month, day;
+            now = new Date();
+
+            month = now.getMonth() + 1;
+
+            year = now.getFullYear();
+            document.querySelector(DOMstrings.dateLabel).textContent =
+                month + ' / ' + year;
         },
 
         getDomstrings: function () {
@@ -259,6 +368,17 @@ var controller = (function (budgetCtrl, UICtrl) {
         UICtrl.displayBudget(budget);
     };
 
+    var updatePercentages = function () {
+        // 1. 백분율 계산
+        budgetCtrl.calculatePercentages();
+
+        // 2. Read percentages from the budget controller
+        var percentages = budgetCtrl.getPercentages();
+
+        // 3. UI업뎃 new percentages
+        UICtrl.displayPercentages(percentages);
+    };
+
     // cilck keypress
     var ctrlAddItem = function () {
         var input, newItem;
@@ -280,17 +400,22 @@ var controller = (function (budgetCtrl, UICtrl) {
             // 3. UI에 항목 추가
             UICtrl.addListItem(newItem, input.type);
 
-            // 4. Clear the fields
+            // 4. 입력 한 값들 지우기
             UICtrl.clearFields();
 
             // 5. Calculate and update budget
             updateBudget();
+
+            // 6. Calculate and update percentages
+            updatePercentages();
         }
     };
 
     var ctrlDeleteItem = function (event) {
         var itemID, splitID, type, ID;
+
         itemID = event.target.parentNode.parentNode.parentNode.parentNode.id;
+
         if (itemID) {
             // inc-1
             splitID = itemID.split('-');
@@ -301,14 +426,20 @@ var controller = (function (budgetCtrl, UICtrl) {
             budgetCtrl.deleteItem(type, ID);
 
             // 2. delete the item from the UI
+            UICtrl.deleteListItem(itemID);
 
             // 3. updata and show the new budget
+            updateBudget();
+
+            // 4. Calculate and update percentages
+            updatePercentages();
         }
     };
 
     return {
         init: function () {
             console.log('Application has started.');
+            UICtrl.displayMonth();
             UICtrl.displayBudget({
                 budget: 0,
                 totalInc: 0,
